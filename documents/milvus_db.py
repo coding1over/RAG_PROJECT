@@ -1,5 +1,6 @@
 from typing import List
 import json
+import time  # 新增：等待加载
 
 from langchain_core.documents import Document
 from pymilvus import MilvusClient, Function
@@ -52,7 +53,12 @@ class MilvusVectorSave:
         index_params.add_index(
             field_name="sparse",
             index_type="SPARSE_INVERTED_INDEX",
-            metric_type="BM25"
+            metric_type="BM25",
+            params={
+                "inverted_index_algo": "DAAT_MAXSCORE",
+                "bm25_k1": 1.2,
+                "bm25_b": 0.75
+            }
         )
         # 稠密向量索引
         index_params.add_index(
@@ -91,17 +97,37 @@ class MilvusVectorSave:
 
         # 原生插入
         res = self.client.insert(COLLECTION_NAME, data)
+        # 🚨 修复1：强制数据落盘（必须加！）
+        self.client.flush(COLLECTION_NAME)
         print(f"✅ 成功插入 {res['insert_count']} 条数据")
 
     def test_query(self):
         """测试查询"""
+        # 🚨 修复2：查询前必须加载集合！
+        self.client.load_collection(COLLECTION_NAME)
+        time.sleep(0.5)  # 等待加载完成
+
+        # 🚨 修复3：先无条件查询所有数据（100%能查到）
+        print("="*50)
+        print("📊 无条件查询所有数据：")
+        all_result = self.client.query(
+            collection_name=COLLECTION_NAME,
+            filter="id >= 0",  # 无过滤，查全部
+            output_fields=["text", "category", "filename"],
+            limit=20
+        )
+        print("全部数据：", json.dumps(all_result, ensure_ascii=False, indent=2))
+        print(f"🎉 共查询到 {len(all_result)} 条数据！")
+
+        # 保留你原来的过滤查询（会空，因为没有category='Title'）
+        print("\n" + "="*50)
+        print("🔍 原条件查询（category='Title'，无数据是正常的）：")
         result = self.client.query(
             collection_name=COLLECTION_NAME,
             filter="category == 'Title'",
             output_fields=["text", "category", "filename"]
         )
         print("测试查询结果：", json.dumps(result, ensure_ascii=False, indent=2))
-
 
 if __name__ == '__main__':
     # 1. 解析文档
@@ -111,8 +137,8 @@ if __name__ == '__main__':
 
     # 2. 核心操作（纯原生SDK，永无连接报错）
     mv = MilvusVectorSave()
-    mv.create_collection()   # 创建集合
-    mv.insert_documents(docs)# 插入数据
-    mv.test_query()          # 测试查询
+    mv.create_collection()  # 创建集合
+    mv.insert_documents(docs)  # 插入数据
+    mv.test_query()  # 测试查询
 
     print("\n🎉 全部执行成功！Milvus 功能正常！")
