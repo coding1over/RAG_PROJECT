@@ -5,7 +5,7 @@ import numpy as np  # NumPy 库，用于生成随机数和处理数组
 # 初始化 Milvus 客户端
 # 参数 "./milvus_demo.db" 指定了本地数据库文件的路径
 # client = MilvusClient("./milvus_demo.db")
-client = MilvusClient(uri='http://1.95.116.112:19530')
+client = MilvusClient(uri='http://175.27.169.203:19530')
 
 client.drop_collection(collection_name='demo_collection')
 
