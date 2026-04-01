@@ -59,11 +59,12 @@ def milvus_writer_process(input_queue: Queue):
             if datas is None:
                 break
 
-        mv.insert_documents(datas)
-        total_count += len(datas)
-        log.info(f"目前写入了{total_count}条数据")
+            if isinstance(datas,list):
+                mv.insert_documents(datas)
+                total_count += len(datas)
+                log.info(f"目前写入了{total_count}条数据")
         except Exception as e:
-            log.error(e)
-
+            log.error(f"数据写入失败！")
+            log.exception(e)
 
     log.info(f"总计写入了{total_count}条数据")
