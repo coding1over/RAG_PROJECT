@@ -49,4 +49,4 @@ def milvus_writer_process(input_queue: Queue):
     """进程2：从队列中读取并写入Milvus"""
     log.info("Milvus写入进程启动中...")
 
-    # mv = MilvusVectorSave()
+    mv = MilvusVectorSave()
