@@ -57,7 +57,7 @@ def milvus_writer_process(input_queue: Queue):
         try:
             datas = input_queue.get()
             if datas is None:
-            break
+                break
 
         mv.insert_documents(datas)
         total_count += len(datas)
