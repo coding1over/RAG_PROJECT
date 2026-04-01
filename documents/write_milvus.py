@@ -45,7 +45,7 @@ def file_parser_process(dir_path: str, output_queue: Queue, batch_size: int = 20
     log.info(f"解析完成，共处理完成了{len(md_files)}个文件")
 
 
-def milvus_writer_process(input_queue: Queue):
+def milvus_writer_process(input_queur: Queue):
     """进程2：从队列中读取并写入Milvus"""
     log.info("Milvus写入进程启动中...")
 
