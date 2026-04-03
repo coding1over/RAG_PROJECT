@@ -51,7 +51,7 @@ def milvus_writer_process(input_queue: Queue):
     log.info("Milvus写入进程启动中...")
 
     mv = MilvusVectorSave()
-    mv.create_collection()
+    # mv.create_collection()
     total_count = 0
     while True:
         try:
