@@ -78,21 +78,41 @@ class MilvusVectorSave:
 
     def insert_documents(self, docs: List[Document]):
         """原生插入数据（绕过LangChain连接bug）"""
-
         data = []
 
-        # ✅ 第一步：先过滤掉空内容、无效文档（关键修复）
-        valid_docs = [doc for doc in docs if doc and doc.page_content and len(doc.page_content.strip()) > 0]
+        # ======================
+        # 🔥 调试核心：先打印所有原始文档！！！
+        # ======================
+        print(f"\n=====================================")
+        print(f"📥 接收到文档总数：{len(docs)}")
+        print(f"📄 打印每个文档的真实内容（repr 显示空/换行/空格）：")
+        for i, doc in enumerate(docs):
+            # repr() 会把空字符串显示为 ''，换行显示为 \n，空格显示为 '   '
+            print(f"[{i}] page_content = {repr(doc.page_content)}")
+        print(f"=====================================\n")
 
+        # 安全过滤
+        valid_docs = []
+        for doc in docs:
+            if not doc:
+                continue
+            content = doc.page_content or ""
+            # 去除空白后有内容才保留
+            if content.strip() != "":
+                valid_docs.append(doc)
+
+        print(f"✅ 有效文档数（非空白）：{len(valid_docs)}")
+
+        # 无有效文档，仅提示，不中断（方便你看调试日志）
         if not valid_docs:
             print("⚠️ 无有效文档，跳过插入")
             return
 
-        # 生成向量（只给有效文档生成）
+        # 生成向量
         contents = [doc.page_content for doc in valid_docs]
         embeddings = self.embedding.embed_documents(contents)
 
-        # ✅ 第二步：严格一对一匹配，绝对不会越界
+        # 组装数据
         for idx, doc in enumerate(valid_docs):
             data.append({
                 "text": doc.page_content,
@@ -105,10 +125,35 @@ class MilvusVectorSave:
                 "dense": embeddings[idx]
             })
 
-        # 原生插入
+        # 插入数据
         res = self.client.insert(COLLECTION_NAME, data)
         self.client.flush(COLLECTION_NAME)
         print(f"✅ 成功插入 {res['insert_count']} 条数据")
+
+    # def insert_documents(self, docs: List[Document]):
+    #     """原生插入数据（绕过LangChain连接bug）"""
+    #     data = []
+    #     # 生成向量并组装数据
+    #     embeddings = self.embedding.embed_documents([doc.page_content for doc in docs])
+    #
+    #     for idx, doc in enumerate(docs):
+    #         data.append({
+    #             "text": doc.page_content,
+    #             "category": doc.metadata.get("category", ""),
+    #             "source": doc.metadata.get("source", ""),
+    #             "filename": doc.metadata.get("filename", ""),
+    #             "filetype": doc.metadata.get("filetype", ""),
+    #             "title": doc.metadata.get("title", ""),
+    #             "category_depth": doc.metadata.get("category_depth", 0),
+    #             "dense": embeddings[idx]
+    #             # sparse 由BM25函数自动生成，无需手动插入
+    #         })
+    #
+    #     # 原生插入
+    #     res = self.client.insert(COLLECTION_NAME, data)
+    #     # 🚨 修复1：强制数据落盘（必须加！）
+    #     self.client.flush(COLLECTION_NAME)
+    #     print(f"✅ 成功插入 {res['insert_count']} 条数据")
 
     def test_query(self):
         """测试查询"""
@@ -140,7 +185,7 @@ class MilvusVectorSave:
 
 if __name__ == '__main__':
     # 1. 解析文档
-    file_path = r'C:\Users\1\Desktop\RAG_PROJECT\datas\md\tech_report_0tfhhamx.md'
+    file_path = r'C:\Users\1\Desktop\RAG_PROJECT\datas\md\operational_faq.md'
     parser = MarkdownParser()
     docs = parser.parse_markdown_to_documents(file_path)
 

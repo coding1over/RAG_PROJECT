@@ -33,7 +33,8 @@ def file_parser_process(dir_path: str, output_queue: Queue, batch_size: int = 20
             if docs:
                 doc_batch.extend(docs)
             if len(doc_batch) >= batch_size:
-                output_queue.put(doc_batch)
+                # 🔥 修复：必须传 copy()，否则clear()会清空数据
+                output_queue.put(doc_batch.copy())
                 doc_batch.clear()  # 清空当前缓冲区所有的批次数据
         except Exception as e:
             log.error(f"解析失败{md_file}:{str(e)}")
