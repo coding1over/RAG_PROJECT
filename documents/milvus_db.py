@@ -78,11 +78,22 @@ class MilvusVectorSave:
 
     def insert_documents(self, docs: List[Document]):
         """原生插入数据（绕过LangChain连接bug）"""
-        data = []
-        # 生成向量并组装数据
-        embeddings = self.embedding.embed_documents([doc.page_content for doc in docs])
 
-        for idx, doc in enumerate(docs):
+        data = []
+
+        # ✅ 第一步：先过滤掉空内容、无效文档（关键修复）
+        valid_docs = [doc for doc in docs if doc and doc.page_content and len(doc.page_content.strip()) > 0]
+
+        if not valid_docs:
+            print("⚠️ 无有效文档，跳过插入")
+            return
+
+        # 生成向量（只给有效文档生成）
+        contents = [doc.page_content for doc in valid_docs]
+        embeddings = self.embedding.embed_documents(contents)
+
+        # ✅ 第二步：严格一对一匹配，绝对不会越界
+        for idx, doc in enumerate(valid_docs):
             data.append({
                 "text": doc.page_content,
                 "category": doc.metadata.get("category", ""),
@@ -92,12 +103,10 @@ class MilvusVectorSave:
                 "title": doc.metadata.get("title", ""),
                 "category_depth": doc.metadata.get("category_depth", 0),
                 "dense": embeddings[idx]
-                # sparse 由BM25函数自动生成，无需手动插入
             })
 
         # 原生插入
         res = self.client.insert(COLLECTION_NAME, data)
-        # 🚨 修复1：强制数据落盘（必须加！）
         self.client.flush(COLLECTION_NAME)
         print(f"✅ 成功插入 {res['insert_count']} 条数据")
 

@@ -1,3 +1,4 @@
+import multiprocessing
 import os
 from multiprocessing import Queue
 
@@ -28,8 +29,9 @@ def file_parser_process(dir_path: str, output_queue: Queue, batch_size: int = 20
     for md_file in md_files:
         try:
             docs = parser.parse_markdown_to_documents(md_file)
+            print(f"{md_file}解析成功")
             if docs:
-                doc_batch = doc_batch.extend(docs)
+                doc_batch.extend(docs)
             if len(doc_batch) >= batch_size:
                 output_queue.put(doc_batch)
                 doc_batch.clear()  # 清空当前缓冲区所有的批次数据
@@ -68,3 +70,33 @@ def milvus_writer_process(input_queue: Queue):
             log.exception(e)
 
     log.info(f"总计写入了{total_count}条数据")
+
+if __name__ == '__main__':
+    # 配置参数
+    md_dir = r'C:\Users\1\Desktop\RAG_PROJECT\datas\md'  # Markdown文件目录
+    queue_maxsize = 20  # 队列最大容量（防止内存溢出）
+
+    mv = MilvusVectorSave()
+    mv.create_collection()
+
+    # 创建进程间通信队列
+    docs_queue = Queue(maxsize=queue_maxsize)
+
+    # 启动子进程
+    parser_proc = multiprocessing.Process(
+        target=file_parser_process,
+        args=(md_dir, docs_queue)
+    )
+    writer_proc = multiprocessing.Process(
+        target=milvus_writer_process,
+        args=(docs_queue,)
+    )
+
+    parser_proc.start()
+    writer_proc.start()
+
+    # 等待进程结束
+    parser_proc.join()
+    writer_proc.join()
+
+    print("系统提示：所有任务完成")
