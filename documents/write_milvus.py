@@ -60,7 +60,7 @@ def milvus_writer_process(input_queue: Queue):
                 break
 
             if isinstance(datas,list):
-                mv.insert_domilvus_writer_processcuments(datas)
+                mv.insert_documents(datas)
                 total_count += len(datas)
                 log.info(f"目前写入了{total_count}条数据")
         except Exception as e:
